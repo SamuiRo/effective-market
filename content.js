@@ -81,22 +81,45 @@ function insertCustomInfo(targetElement) {
     newDiv.style.padding = "10px";
     newDiv.style.marginBottom = "10px";
     newDiv.innerHTML = ` 
-        <div id="price-buttons">
-            <p>Виберіть ціну:</p>
-            ${createPriceButtons([1, 2, 3, 4, 5])}
+        <div class="price-buttons-row" id="price-buttons-sale">
+        <p>% від пропозиції:</p>
+        <div class="button-row">
+            ${createPriceButtons("price-btn-sale-row", [0.15, 0.25, 0.35, 0.50, 0.60])}
+            </div>
+        </div>
+        <div class="price-buttons-row" id="price-buttons-request" style="margin-top: 10px;">
+            <p>% від запитів:</p>
+            <div class="button-row">
+            ${createPriceButtons("price-btn-request-row", [0.15, 0.25, 0.35, 0.50, 0.60])}
+            </div>
         </div>
         <div id="quantity-buttons" style="margin-top: 10px;">
             <p>Виберіть кількість:</p>
+            <div class="button-row">
             ${createQuantityButtons([50, 100, 250, 500, 1000])}
+            </div>
         </div>
+        <style>
+        #custom-info1{display: flex; flex-direction: column; width: 100%;}
+        .price-buttons-row{display: flex; flex-direction: column; width: 100%;}
+        #quantity-buttons{display: flex; flex-direction: column; width: 100%}
+        .button-row{display: flex; width: 100%; gap: 15px}
+        </style>
     `;
     targetElement.parentNode.insertBefore(newDiv, targetElement);
     console.log("Новий елемент вставлено.");
+    addEventListeners();
+    updateAllPriceButtons();
 }
 
-// Створення кнопок для вибору ціни
-function createPriceButtons(values) {
-    return values.map(value => `<button class="price-btn" data-price="${value}">${value}</button>`).join('');
+// Функція для створення кнопок із класом для конкретного ряду
+function createPriceButtons(className, percentages) {
+    return percentages.map(percentage => `
+        <div class="price-btn-container">
+            <span class="discount-label">-${percentage * 100}%</span>
+            <button class="${className} price-btn" data-percentage="${percentage}">0.00</button>
+        </div>
+    `).join('');
 }
 
 // Створення кнопок для вибору кількості
@@ -111,6 +134,12 @@ function autoClickCheckbox() {
         checkbox.click();
         console.log("Чекбокс натиснуто автоматично.");
     }
+}
+
+// Оновлення всіх рядів кнопок
+function updateAllPriceButtons() {
+    updatePriceButtons("price-btn-sale-row", "#market_commodity_forsale > span:nth-child(2)", [0.15, 0.25, 0.35, 0.50, 0.60]);
+    updatePriceButtons("price-btn-request-row", "#market_commodity_buyrequests > span:nth-child(2)", [0.10, 0.20, 0.30, 0.40, 0.50]);
 }
 
 // Додавання обробників подій для кнопок
@@ -142,11 +171,11 @@ function addEventListeners() {
     });
 }
 
-// Оновлення цін на кнопках на основі поточної ціни
-function updatePriceButtons() {
-    const priceText = document.querySelector("#market_commodity_forsale > span:nth-child(2)");
+// Оновлення цін на кнопках для конкретного ряду
+function updatePriceButtons(className, priceSelector, percentages) {
+    const priceText = document.querySelector(priceSelector);
     if (!priceText) {
-        console.log("Не знайдено елемента з ціною!");
+        console.log(`Не знайдено елемента для ${className}!`);
         return;
     }
 
@@ -157,13 +186,12 @@ function updatePriceButtons() {
         return;
     }
 
-    const priceButtons = document.querySelectorAll(".price-btn");
-    const pricePercentages = [0.15, 0.25, 0.35, 0.50, 0.60];
-    priceButtons.forEach((button, index) => {
-        const discount = price * (1 - pricePercentages[index]);
+    const buttons = document.querySelectorAll(`.${className}`);
+    buttons.forEach((button, index) => {
+        const discount = price * (1 - percentages[index]);
         button.setAttribute("data-price", discount.toFixed(2));
         button.textContent = discount.toFixed(2);
     });
 
-    console.log("Ціни на кнопках оновлено.");
+    console.log(`Ціни на кнопках ${className} оновлено.`);
 }
