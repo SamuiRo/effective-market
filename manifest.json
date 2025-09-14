@@ -1,22 +1,21 @@
 {
   "manifest_version": 3,
   "name": "Vapor",
-  "version": "1.1",
-  "description": "Розширення для взаємодії з Steam Market.",
-  "permissions": ["activeTab", "storage"],
+  "version": "2.0.0",
+  "description": "Steam Market helper extension",
+  "permissions": ["activeTab"],
   "host_permissions": ["https://steamcommunity.com/market/listings/*"],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "./background/background.js"
   },
   "content_scripts": [
     {
-      "matches": ["*://steamcommunity.com/*/*"],
-      "js": ["content.js"],
-      "css": ["style.css"]
+      "matches": ["*://steamcommunity.com/market/listings/*"],
+      "js": ["content.js"]
     }
   ],
   "action": {
-    "default_popup": "popup.html",
+    "default_popup": "./popup/popup.html",
     "default_icon": {
       "16": "icons/icon.png",
       "48": "icons/icon.png",
@@ -25,5 +24,12 @@
   },
   "icons": {
     "128": "icons/icon.png"
-  }
+  },
+
+  "web_accessible_resources": [
+    {
+      "resources": ["*.js"],
+      "matches": ["*://steamcommunity.com/*"]
+    }
+  ]
 }
