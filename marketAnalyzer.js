@@ -1,12 +1,8 @@
-// marketAnalyzer.js - Оптимізована аналітика для Steam Market
 export class MarketAnalyzer {
   constructor() {
     this.MILLISECONDS_IN_DAY = 24 * 60 * 60 * 1000;
   }
 
-  /**
-   * Головний метод для аналітики Steam Market
-   */
   analyzeMarketData(marketData) {
     if (!marketData || !marketData.priceGraph?.raw) {
       return this.getEmptyAnalysis();
@@ -28,9 +24,6 @@ export class MarketAnalyzer {
     return analysis;
   }
 
-  /**
-   * Нормалізація даних цін для Steam Market
-   */
   normalizePriceData(rawData) {
     if (!Array.isArray(rawData) || rawData.length === 0) return [];
 
@@ -44,19 +37,12 @@ export class MarketAnalyzer {
       .sort((a, b) => a.timestamp - b.timestamp);
   }
 
-  /**
-   * Отримання поточної ціни
-   */
   getCurrentPrice(marketData, priceData) {
-    // Пріоритет: ціна продажу з маркету, потім остання ціна з графіка
     if (marketData.salePrice > 0) return marketData.salePrice;
     if (priceData.length > 0) return priceData[priceData.length - 1].price;
     return 0;
   }
 
-  /**
-   * Аналіз трендів для Steam Market
-   */
   analyzeTrends(priceData) {
     const now = Date.now();
     const oneWeekAgo = now - 7 * this.MILLISECONDS_IN_DAY;
@@ -73,9 +59,6 @@ export class MarketAnalyzer {
     };
   }
 
-  /**
-   * Розрахунок тренду за період
-   */
   calculatePeriodTrend(priceData, fromTimestamp) {
     const periodData = priceData.filter(
       (point) => point.timestamp >= fromTimestamp
@@ -92,14 +75,11 @@ export class MarketAnalyzer {
     return {
       trend: parseFloat(trendPercent.toFixed(2)),
       direction: this.classifyTrendDirection(trendPercent),
-      confidence: Math.min(periodData.length / 10, 1), // Впевненість на основі кількості точок
+      confidence: Math.min(periodData.length / 10, 1), 
       dataPoints: periodData.length,
     };
   }
 
-  /**
-   * Класифікація напряму тренду
-   */
   classifyTrendDirection(trendPercent) {
     if (trendPercent > 10) return "strong_bullish";
     if (trendPercent > 3) return "bullish";
@@ -108,9 +88,6 @@ export class MarketAnalyzer {
     return "strong_bearish";
   }
 
-  /**
-   * Аналіз волатильності
-   */
   analyzeVolatility(priceData) {
     if (priceData.length < 5) {
       return { status: "insufficient_data" };
@@ -127,9 +104,6 @@ export class MarketAnalyzer {
     };
   }
 
-  /**
-   * Розрахунок прибутковості
-   */
   calculateReturns(prices) {
     const returns = [];
     for (let i = 1; i < prices.length; i++) {
@@ -138,9 +112,6 @@ export class MarketAnalyzer {
     return returns;
   }
 
-  /**
-   * Класифікація волатильності для Steam Market
-   */
   classifyVolatility(volatility) {
     if (volatility > 8) return "extreme";
     if (volatility > 5) return "high";
@@ -149,9 +120,6 @@ export class MarketAnalyzer {
     return "very_low";
   }
 
-  /**
-   * Оцінка ризику на основі волатильності
-   */
   assessVolatilityRisk(volatility) {
     if (volatility > 8) return "very_high";
     if (volatility > 5) return "high";
@@ -159,9 +127,6 @@ export class MarketAnalyzer {
     return "low";
   }
 
-  /**
-   * Аналіз спреду для Steam Market
-   */
   analyzeSpread(marketData) {
     const spread = marketData.salePrice - marketData.requestPrice;
     const spreadPercent =
@@ -177,9 +142,6 @@ export class MarketAnalyzer {
     };
   }
 
-  /**
-   * Оцінка арбітражної можливості на основі спреду
-   */
   assessSpreadOpportunity(spreadPercent) {
     if (spreadPercent > 15) return "excellent";
     if (spreadPercent > 10) return "good";
@@ -187,9 +149,6 @@ export class MarketAnalyzer {
     return "poor";
   }
 
-  /**
-   * Аналіз обсягів торгів
-   */
   analyzeVolume(priceData) {
     if (priceData.length === 0) return { status: "insufficient_data" };
 
@@ -217,16 +176,12 @@ export class MarketAnalyzer {
     };
   }
 
-  /**
-   * Генерація рекомендацій для Steam Market
-   */
   generateRecommendations(priceData, marketData) {
     const recommendations = [];
     const trends = this.analyzeTrends(priceData);
     const spreadAnalysis = this.analyzeSpread(marketData);
     const volatility = this.analyzeVolatility(priceData);
 
-    // Рекомендації на основі тренду
     if (trends.last7d.direction === "strong_bullish") {
       recommendations.push({
         action: "BUY",
@@ -245,7 +200,6 @@ export class MarketAnalyzer {
       });
     }
 
-    // Рекомендації на основі спреду
     if (spreadAnalysis.opportunity === "excellent") {
       recommendations.push({
         action: "ARBITRAGE",
@@ -255,7 +209,6 @@ export class MarketAnalyzer {
       });
     }
 
-    // Рекомендації на основі волатильності
     if (volatility.riskLevel === "very_high") {
       recommendations.push({
         action: "CAUTION",
@@ -271,9 +224,6 @@ export class MarketAnalyzer {
     };
   }
 
-  /**
-   * Загальний тренд
-   */
   calculateOverallTrend(priceData) {
     if (priceData.length < 2) return { trend: 0, direction: "neutral" };
 
@@ -291,9 +241,6 @@ export class MarketAnalyzer {
     };
   }
 
-  /**
-   * Стандартне відхилення
-   */
   calculateStandardDeviation(values) {
     const mean = values.reduce((a, b) => a + b) / values.length;
     const variance =
@@ -302,9 +249,6 @@ export class MarketAnalyzer {
     return Math.sqrt(variance);
   }
 
-  /**
-   * Підсумок рекомендацій
-   */
   summarizeRecommendations(recommendations) {
     if (recommendations.length === 0) return "Немає активних рекомендацій";
 

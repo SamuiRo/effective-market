@@ -1,6 +1,3 @@
-// dialogManager.js - Відповідає за роботу з модальним вікном
-// import { CONFIG } from './config.js';
-
 export class DialogManager {
   async insertControlPanel(targetElement) {
     const { CONFIG } = await import(chrome.runtime.getURL("config.js"));
@@ -14,7 +11,7 @@ export class DialogManager {
     targetElement.parentNode.insertBefore(controlPanel, targetElement);
     this.attachEventListeners();
     await this.updateAllPriceButtons();
-    console.log("✨ Панель управління додана");
+    console.log("✨ Control Panel inserted");
   }
 
   async createControlPanelHTML() {
@@ -26,21 +23,21 @@ export class DialogManager {
       </div>
       
       <div class="vapor-control-section">
-        <div class="vapor-section-title">% від пропозицій:</div>
+        <div class="vapor-section-title">% of sales:</div>
         <div class="vapor-button-grid">
           ${this.createPriceButtons("sale", CONFIG.pricePercentages.sale)}
         </div>
       </div>
 
       <div class="vapor-control-section">
-        <div class="vapor-section-title">% від запитів:</div>
+        <div class="vapor-section-title">% of requests:</div>
         <div class="vapor-button-grid">
           ${this.createPriceButtons("request", CONFIG.pricePercentages.request)}
         </div>
       </div>
 
       <div class="vapor-control-section">
-        <div class="vapor-section-title">Кількість:</div>
+        <div class="vapor-section-title">Quantity:</div>
         <div class="vapor-button-grid">
           ${await this.createQuantityButtons()}
         </div>
@@ -55,7 +52,7 @@ export class DialogManager {
         <button class="control-btn price-btn" 
                 data-type="${type}" 
                 data-percentage="${percentage}"
-                title="Встановити ціну зі знижкою ${percentage * 100}%">
+                title="Set price to -${percentage * 100}%">
           <span class="discount">-${(percentage * 100).toFixed(0)}%</span>
           <span class="price">0.00</span>
         </button>
@@ -72,7 +69,7 @@ export class DialogManager {
         (quantity) => `
         <button class="control-btn quantity-btn" 
                 data-quantity="${quantity}"
-                title="Встановити кількість ${quantity}">
+                title="Set quantity to ${quantity}">
           ${quantity}
         </button>
       `
@@ -81,7 +78,6 @@ export class DialogManager {
   }
 
   attachEventListeners() {
-    // Обробники для кнопок цін
     document.querySelectorAll(".price-btn").forEach((button) => {
       button.addEventListener("click", async () => {
         const price = button.getAttribute("data-price");
@@ -90,7 +86,6 @@ export class DialogManager {
       });
     });
 
-    // Обробники для кнопок кількості
     document.querySelectorAll(".quantity-btn").forEach((button) => {
       button.addEventListener("click", async () => {
         const quantity = button.getAttribute("data-quantity");

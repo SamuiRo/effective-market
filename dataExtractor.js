@@ -3,40 +3,15 @@ export class DataExtractor {
     try {
       const { CONFIG } = await import(chrome.runtime.getURL("config.js"));
 
-      // Основна інформація про предмет
       const basicInfo = this.extractBasicInfo(CONFIG);
-
-      // Дані з графіка цін
       const priceGraphData = this.extractPriceGraphData();
-
-      // Історія цін з елементів сторінки
       const priceHistoryData = this.extractPriceHistoryFromElements();
-
-      // Інформація про ордери
       const orderBookData = this.extractOrderBookData();
-
-      // Метадані сторінки
       const pageMetadata = this.extractPageMetadata();
-
-      // Додаткові дані зі сторінки
       const additionalData = this.extractAdditionalData();
-
-      // Обчислення метрик
       const calculatedMetrics = this.calculateMetrics(basicInfo);
 
-      console.log("Data", {
-        ...basicInfo,
-        priceGraph: priceGraphData,
-        priceHistory: priceHistoryData,
-        orderBook: orderBookData,
-        metadata: pageMetadata,
-        additional: additionalData,
-        metrics: calculatedMetrics,
-        timestamp: Date.now(),
-        url: window.location.href,
-      });
-
-      return {
+      const result = {
         ...basicInfo,
         priceGraph: priceGraphData,
         priceHistory: priceHistoryData,
@@ -47,56 +22,40 @@ export class DataExtractor {
         timestamp: Date.now(),
         url: window.location.href,
       };
+
+      console.log("Extracted data:", result);
+      return result;
     } catch (error) {
       console.error("Error extracting item info:", error);
       return null;
     }
   }
 
-    extractBasicInfo(CONFIG) {
+  extractBasicInfo(CONFIG) {
     const nameElement = document.querySelector(CONFIG.selectors.itemName);
-    const name = nameElement
-      ? nameElement.textContent.trim()
-      : "Невідомий товар";
-
-    // Спробуємо отримати ціни різними способами
-    const salePrice = this.extractSalePrice(CONFIG);
-    console.log("Extracted sale price:", salePrice);
-    const requestPrice = this.extractRequestPrice(CONFIG);
-    const saleCount = this.extractSaleCount(CONFIG);
-    const requestCount = this.extractRequestCount(CONFIG);
+    const name = nameElement?.textContent.trim() || "Unknown item";
 
     return {
       name,
-      salePrice,
-      requestPrice,
-      saleCount,
-      requestCount,
+      salePrice: this.extractSalePrice(CONFIG),
+      requestPrice: this.extractRequestPrice(CONFIG),
+      saleCount: this.extractSaleCount(CONFIG),
+      requestCount: this.extractRequestCount(CONFIG),
     };
   }
 
-  // Новий метод для отримання ціни продажу
   extractSalePrice(CONFIG) {
-    // Спочатку пробуємо стандартний селектор для commodity
     let price = this.extractPrice(CONFIG.selectors.salePrice);
-    
-    // Якщо не знайшли, шукаємо ціну в списку предметів (для скінів)
+
     if (price === 0) {
-      const listingPrice = document.querySelector('.market_listing_price.market_listing_price_with_fee');
-      if (listingPrice) {
-        price = this.parsePrice(listingPrice.textContent);
-      }
-    }
-    
-    // Додаткові спроби знайти ціну
-    if (price === 0) {
-      const alternativeSelectors = [
-        '.market_listing_right_cell .market_listing_price',
-        '.market_listing_table .market_listing_price',
-        '[id*="listing_"] .market_listing_price'
+      const selectors = [
+        ".market_listing_price.market_listing_price_with_fee",
+        ".market_listing_right_cell .market_listing_price",
+        ".market_listing_table .market_listing_price",
+        '[id*="listing_"] .market_listing_price',
       ];
-      
-      for (const selector of alternativeSelectors) {
+
+      for (const selector of selectors) {
         const element = document.querySelector(selector);
         if (element) {
           price = this.parsePrice(element.textContent);
@@ -104,57 +63,52 @@ export class DataExtractor {
         }
       }
     }
-    
+
     return price;
   }
 
-  // Новий метод для отримання ціни запиту
   extractRequestPrice(CONFIG) {
     let price = this.extractPrice(CONFIG.selectors.requestPrice);
-    
-    // Для скінів ціна запиту може бути в іншому місці
+
     if (price === 0) {
-      const buyOrderPrice = document.querySelector('.market_listing_buyorder_price');
+      const buyOrderPrice = document.querySelector(
+        ".market_listing_buyorder_price"
+      );
       if (buyOrderPrice) {
         price = this.parsePrice(buyOrderPrice.textContent);
       }
     }
-    
+
     return price;
   }
 
-  // Новий метод для отримання кількості продажів
   extractSaleCount(CONFIG) {
     let count = this.extractCount(CONFIG.selectors.saleCount);
-    
+
     if (count === 0) {
-      // Для скінів - рахуємо кількість активних лістингів
-      const listings = document.querySelectorAll('.market_listing_row');
+      const listings = document.querySelectorAll(".market_listing_row");
       count = listings.length;
     }
-    
+
     return count;
   }
 
-  // Новий метод для отримання кількості запитів
   extractRequestCount(CONFIG) {
     let count = this.extractCount(CONFIG.selectors.requestCount);
-    
+
     if (count === 0) {
-      // Для скінів - шукаємо інформацію про buy orders
       const buyOrdersElement = document.querySelector('[href*="#buyorder"]');
       if (buyOrdersElement) {
         const match = buyOrdersElement.textContent.match(/(\d+)/);
         count = match ? parseInt(match[1]) : 0;
       }
     }
-    
+
     return count;
   }
 
   extractPriceGraphData() {
-    // Пробуємо різні можливі змінні з графіком цін
-    const possibleSources = [
+    const sources = [
       "g_plotPriceHistory",
       "line1",
       "g_rgAssetPriceHistory",
@@ -164,20 +118,18 @@ export class DataExtractor {
 
     let priceData = null;
 
-    for (const source of possibleSources) {
+    for (const source of sources) {
       if (window[source]) {
         priceData = window[source];
-        console.log(`✅ Знайдено дані графіка в: ${source}`);
+        console.log(`✅ Found price data in: ${source}`);
         break;
       }
     }
 
-    // Перевіряємо в об'єкті g_plotPriceHistory
     if (!priceData && window.g_plotPriceHistory) {
       priceData = window.g_plotPriceHistory;
     }
 
-    // Шукаємо в скриптах сторінки
     if (!priceData) {
       priceData = this.extractPriceDataFromScripts();
     }
@@ -185,27 +137,23 @@ export class DataExtractor {
     return priceData ? this.processPriceGraphData(priceData) : null;
   }
 
-  extractPriceDataFromScripts() {
+   extractPriceDataFromScripts() {
     const scripts = document.querySelectorAll("script");
+    const patterns = [
+      /g_plotPriceHistory\s*=\s*(\[[\s\S]*?\]);/,
+      /line1\s*=\s*(\[[\s\S]*?\]);/,
+      /"price_history":\s*(\[[\s\S]*?\])/,
+      /"prices":\s*(\[[\s\S]*?\])/,
+    ];
 
     for (const script of scripts) {
-      const content = script.textContent;
-
-      // Шукаємо різні паттерни даних графіка
-      const patterns = [
-        /g_plotPriceHistory\s*=\s*(\[[\s\S]*?\]);/,
-        /line1\s*=\s*(\[[\s\S]*?\]);/,
-        /"price_history":\s*(\[[\s\S]*?\])/,
-        /"prices":\s*(\[[\s\S]*?\])/,
-      ];
-
       for (const pattern of patterns) {
-        const match = content.match(pattern);
+        const match = script.textContent.match(pattern);
         if (match) {
           try {
             return JSON.parse(match[1]);
           } catch (e) {
-            console.warn("Помилка парсингу даних графіка:", e);
+            console.warn("Error parsing price data:", e);
           }
         }
       }
@@ -234,13 +182,12 @@ export class DataExtractor {
         averagePrice:
           rawData.reduce((sum, point) => sum + (point[1] || 0), 0) /
           rawData.length,
-        recentTrend: this.calculateTrend(rawData.slice(-10)), // Останні 10 точок
+        recentTrend: this.calculateTrend(rawData.slice(-10)),
       },
     };
   }
 
   extractPriceHistoryFromElements() {
-    // Шукаємо таблиці з історією цін
     const historySelectors = [
       ".market_commodity_order_block table",
       ".market_listing_table",
@@ -265,7 +212,6 @@ export class DataExtractor {
       sellOrders: [],
     };
 
-    // Шукаємо таблиці ордерів
     const orderTables = document.querySelectorAll(
       ".market_commodity_order_block table"
     );
@@ -304,17 +250,12 @@ export class DataExtractor {
 
   extractAdditionalData() {
     return {
-      // Інформація про предмет з різних елементів
       itemDescription: this.extractItemDescription(),
       itemImage: this.extractItemImage(),
       itemRarity: this.extractItemRarity(),
       itemType: this.extractItemType(),
-
-      // Статистика сторінки
       pageViews: this.extractPageViews(),
       lastUpdate: this.extractLastUpdate(),
-
-      // Додаткові елементи UI
       notifications: this.extractNotifications(),
       warnings: this.extractWarnings(),
     };
@@ -342,8 +283,6 @@ export class DataExtractor {
     };
   }
 
-  // Допоміжні методи для витягування специфічних даних
-
   extractAppId() {
     const match = window.location.pathname.match(/\/(\d+)\//);
     return match ? match[1] : null;
@@ -370,11 +309,10 @@ export class DataExtractor {
         if (text.includes(symbol)) return code;
       }
     }
-    return "USD"; // за замовчуванням
+    return "USD";
   }
 
   extractUserCountry() {
-    // Пробуємо знайти інформацію про країну користувача
     const scripts = document.querySelectorAll("script");
     for (const script of scripts) {
       const match = script.textContent.match(
@@ -405,7 +343,6 @@ export class DataExtractor {
   }
 
   extractItemRarity() {
-    // Пробуємо знайти рідкість предмета в різних місцях
     const rarityElement = document.querySelector(
       '.descriptor[data-content*="rarity"]'
     );
@@ -413,13 +350,11 @@ export class DataExtractor {
   }
 
   extractItemType() {
-    // Витягуємо тип предмета
     const typeElement = document.querySelector(".market_listing_item_type");
     return typeElement ? typeElement.textContent.trim() : null;
   }
 
   extractPageViews() {
-    // Якщо є лічильник переглядів
     const viewsElement = document.querySelector(".market_listing_views");
     return viewsElement
       ? parseInt(viewsElement.textContent.replace(/\D/g, ""))
@@ -427,7 +362,6 @@ export class DataExtractor {
   }
 
   extractLastUpdate() {
-    // Час останнього оновлення
     const updateElement = document.querySelector(".market_listing_last_update");
     return updateElement ? updateElement.textContent.trim() : null;
   }
@@ -451,8 +385,6 @@ export class DataExtractor {
       });
     return warnings;
   }
-
-  // Допоміжні методи
 
   calculateTrend(dataPoints) {
     if (!dataPoints || dataPoints.length < 2) return 0;

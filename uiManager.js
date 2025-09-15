@@ -1,4 +1,3 @@
-// uiManager.js - Відповідає за створення та управління UI елементами
 export class UIManager {
   async addItemInfoDisplay(marketData, analysis = null) {
     const { CONFIG } = await import(chrome.runtime.getURL("config.js"));
@@ -14,7 +13,7 @@ export class UIManager {
 
     await this.addStyles();
     document.body.appendChild(infoElement);
-    console.log("✅ Інформація про предмет з аналітикою додана");
+    console.log("✅ Item Info Display added");
   }
 
   generateInfoHTML(marketData, analysis) {
@@ -24,7 +23,6 @@ export class UIManager {
     return `
       <div class="vapor-info-header">
         <div class="vapor-logo">Vapor</div>
-        <div class="vapor-toggle" onclick="this.parentElement.parentElement.classList.toggle('collapsed')">−</div>
       </div>
       <div class="vapor-info-content">
         ${basicInfo}
@@ -263,8 +261,6 @@ export class UIManager {
       </div>
     `;
   }
-
-  // Допоміжні методи для отримання текстових значень та CSS класів
 
   getTrendClass(direction) {
     if (direction.includes("bullish")) return "positive";
@@ -602,7 +598,6 @@ export class UIManager {
         color: #c7d5e0;
       }
 
-      /* Scrollbar styling */
       #vapor-info::-webkit-scrollbar {
         width: 6px;
       }

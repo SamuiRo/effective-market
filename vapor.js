@@ -8,84 +8,91 @@ export class Vapor {
     this.uiManager = null;
     this.dialogManager = null;
     this.marketAnalyzer = null;
+    this.handleContextInvalidation = this.handleContextInvalidation.bind(this);
+    window.addEventListener("beforeunload", this.handleContextInvalidation);
   }
 
   async init() {
     if (this.isInitialized || !this.isMarketPage()) return;
 
-    console.log("🚀 Ініціалізація Vapor...");
+    console.log("🚀 Initializing Vapor...");
     console.log("✅ Steam Market page detected");
 
-    // Динамічне завантаження модулів
     await this.loadModules();
-
     this.processMarketPage();
     this.startObserving();
     this.isInitialized = true;
   }
 
   async loadModules() {
+    if (!this.isExtensionContextValid()) {
+      console.warn("Extension context invalidated - cannot load modules");
+      return;
+    }
+
     try {
-      const { DataExtractor } = await import(
-        chrome.runtime.getURL("dataExtractor.js")
-      );
-      const { UIManager } = await import(chrome.runtime.getURL("uiManager.js"));
-      const { DialogManager } = await import(
-        chrome.runtime.getURL("dialogManager.js")
-      );
-      const { MarketAnalyzer } = await import(
-        chrome.runtime.getURL("marketAnalyzer.js")
-      );
+      const [
+        { DataExtractor },
+        { UIManager },
+        { DialogManager },
+        { MarketAnalyzer },
+      ] = await Promise.all([
+        import(chrome.runtime.getURL("dataExtractor.js")),
+        import(chrome.runtime.getURL("uiManager.js")),
+        import(chrome.runtime.getURL("dialogManager.js")),
+        import(chrome.runtime.getURL("marketAnalyzer.js")),
+      ]);
 
       this.dataExtractor = new DataExtractor();
       this.uiManager = new UIManager();
       this.dialogManager = new DialogManager();
       this.marketAnalyzer = new MarketAnalyzer();
 
-      console.log("📦 Модулі завантажено успішно");
+      console.log("📦 Modules loaded successfully");
     } catch (error) {
-      console.error("Помилка завантаження модулів:", error);
+      console.error("Error loading modules:", error);
     }
   }
 
   async isMarketPage() {
-    // Завантажуємо конфіг динамічно
-    const { CONFIG } = await import(chrome.runtime.getURL("config.js"));
-    return CONFIG.urlPattern.test(window.location.href);
+    if (!this.isExtensionContextValid()) return false;
+
+    try {
+      const config = await this.getConfig();
+      return config?.urlPattern.test(window.location.href) || false;
+    } catch (error) {
+      return false;
+    }
   }
 
   async processMarketPage() {
-    console.log("🔄 Обробка сторінки маркету...");
+    console.log("🔄 Processing market page...");
 
-    const { CONFIG } = await import(chrome.runtime.getURL("config.js"));
+    const config = await this.getConfig();
+    if (!config) return;
 
     setTimeout(async () => {
       const marketData = await this.dataExtractor.extractItemInfo();
 
-      if (marketData && marketData.name) {
+      if (marketData?.name) {
         this.marketData = marketData;
+        console.log("🛒 Item data extracted:", marketData);
 
-        console.log("🛒 Дані про товар отримано:", marketData);
-        // Виконуємо аналіз ринкових даних
         const analysis = this.marketAnalyzer.analyzeMarketData(marketData);
-
-        // Передаємо як marketData, так і analysis до UI
         this.uiManager.addItemInfoDisplay(marketData, analysis);
-
-        console.log("📊 Аналіз ринкових даних завершено");
+        console.log("📊 Market data analysis completed");
       } else {
-        console.log("⚠️ Не вдалося отримати дані про товар");
+        console.log("⚠️ Failed to extract item data");
       }
-    }, CONFIG.delays.marketPageProcessing);
+    }, config.delays.marketPageProcessing);
   }
 
   startObserving() {
     if (this.observer) this.observer.disconnect();
 
-    this.observer = new MutationObserver((mutations) => {
-      this.handleMutations(mutations);
-    });
-
+    this.observer = new MutationObserver((mutations) =>
+      this.handleMutations(mutations)
+    );
     this.observer.observe(document.body, {
       childList: true,
       subtree: true,
@@ -94,32 +101,72 @@ export class Vapor {
   }
 
   async handleMutations(mutations) {
+    if (!this.isExtensionContextValid()) {
+      this.destroy();
+      return;
+    }
+
     const shouldUpdate = mutations.some(
       (mutation) => mutation.addedNodes.length > 0
     );
     if (shouldUpdate) {
       await this.handlePopup();
-      if (this.dialogManager) {
-        this.dialogManager.autoClickCheckbox();
-      }
+      this.dialogManager?.autoClickCheckbox();
     }
   }
 
   async handlePopup() {
-    const { CONFIG } = await import(chrome.runtime.getURL("config.js"));
+    if (!this.isExtensionContextValid()) {
+      console.warn("Extension context invalidated - skipping handlePopup");
+      return;
+    }
 
-    const orderModal = document.querySelector(CONFIG.selectors.orderModal);
+    const config = await this.getConfig();
+    if (!config) return;
 
-    if (!orderModal || document.getElementById(CONFIG.ui.controlPanelId))
+    const orderModal = document.querySelector(config.selectors.orderModal);
+    if (!orderModal || document.getElementById(config.ui.controlPanelId))
       return;
 
     const targetElement = document.querySelector(
-      CONFIG.selectors.targetElement
+      config.selectors.targetElement
     );
     if (targetElement && this.dialogManager) {
-      console.log("🎯 Модальне вікно знайдено, додаємо елементи управління");
+      console.log("🎯 Modal found, adding controls");
       await this.dialogManager.insertControlPanel(targetElement);
     }
+  }
+
+  async getConfig() {
+    if (this._config && this.isExtensionContextValid()) {
+      return this._config;
+    }
+
+    try {
+      const { CONFIG } = await import(chrome.runtime.getURL("config.js"));
+      this._config = CONFIG;
+      return CONFIG;
+    } catch (error) {
+      console.error("Failed to load config:", error);
+      return null;
+    }
+  }
+
+  isExtensionContextValid() {
+    try {
+      return (
+        typeof chrome !== "undefined" &&
+        chrome.runtime?.getURL &&
+        chrome.runtime?.id
+      );
+    } catch (error) {
+      return false;
+    }
+  }
+
+  handleContextInvalidation() {
+    console.log("Extension context being invalidated - cleaning up");
+    this.destroy();
   }
 
   destroy() {
@@ -128,10 +175,10 @@ export class Vapor {
       this.observer = null;
     }
 
-    const helperElements = document.querySelectorAll('[id^="vapor"]');
-    helperElements.forEach((el) => el.remove());
+    document.querySelectorAll('[id^="vapor"]').forEach((el) => el.remove());
+    window.removeEventListener("beforeunload", this.handleContextInvalidation);
 
     this.isInitialized = false;
-    console.log("🧹 Vapor очищено");
+    console.log("🧹 Vapor cleaned up");
   }
 }
